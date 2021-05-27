@@ -1,7 +1,7 @@
 # e-tennis
 Web scraper and automation tools for e-tennis site. 
 
-Our site = e-tennis.gr
+Our site = https://www.e-tennis.gr/
 
 Main Competitors:
 1. https://www.tenniswarehouse-europe.com/
