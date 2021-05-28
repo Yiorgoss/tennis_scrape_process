@@ -8,7 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import pandas as pd 
 import time
 
-df = pd.read_csv('C:\\Users\\Lefteris\\OneDrive\\Desktop\\Scripts\\Selenium\\EXCELS FOR SELENIUM\\Wilson beginners selinium test.csv')
+df = pd.read_csv(pathtocsv)
 
 PATH = "C:\\Program Files (x86)\\chromedriver.exe"
 driver = webdriver.Chrome(PATH)
