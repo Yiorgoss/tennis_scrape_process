@@ -13,7 +13,7 @@ df = pd.read_csv('C:\\Users\\Lefteris\\OneDrive\\Desktop\\Scripts\\Selenium\\EXC
 PATH = "C:\\Program Files (x86)\\chromedriver.exe"
 driver = webdriver.Chrome(PATH)
 
-driver.get("https://www.e-tennis.com/index.php/e1mp73yt5fr0s98rmfs7rq/customer/index/key/1452c629c6f3cb7dc0465d3ba859dba2/")
+driver.get(url)
 
 #Login
 driver.find_element_by_xpath('//*[@id="username"]').send_keys(username)
