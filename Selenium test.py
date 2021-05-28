@@ -16,8 +16,8 @@ driver = webdriver.Chrome(PATH)
 driver.get("https://www.e-tennis.com/index.php/e1mp73yt5fr0s98rmfs7rq/customer/index/key/1452c629c6f3cb7dc0465d3ba859dba2/")
 
 #Login
-driver.find_element_by_xpath('//*[@id="username"]').send_keys("monica")
-driver.find_element_by_id("login").send_keys("monica123")
+driver.find_element_by_xpath('//*[@id="username"]').send_keys(username)
+driver.find_element_by_id("login").send_keys(password)
 driver.find_element_by_class_name("form-button").click()
 
 #Popup
