@@ -5,7 +5,7 @@ import os.path
 
 page_url = "https://www.tenniswarehouse-europe.com/catpage-WILSONRACS-EN.html"
 
-save_path = 'C:\\Users\\Lefteris\\OneDrive\\Desktop\\Scrape Excels'
+save_path = os.environ.get("OUTPUT_PATH")
 
 
 response = requests.get(page_url, cookies={'SMID':'smc_fbIdmC7VmLvxzHBD0pXTqbYo7kSYh69hqcKQ02xE_239306669'})
