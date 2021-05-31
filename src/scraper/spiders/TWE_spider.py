@@ -32,7 +32,7 @@ class TWE_Spider(scrapy.Spider):
             self.logger.info("\t %s : %s", category, url)
             yield Request(
                 url,
-                callback=self.parse_products,
+                callback=self.parse_products_list,
                 cb_kwargs=dict(category=category),
             )
 
@@ -45,8 +45,16 @@ class TWE_Spider(scrapy.Spider):
         self.logger.info("urlhelper called : %s returned", url)
         return url
 
-    def parse_products(self, response, category):
-        # only keep rows with rackets
-        product_card_list = response.xpath("//table/tr/td[@class='cat_border_cell']")
+    def parse_product_list(self, response, category):
+        # drop advert rows and follow product urls
+        product_url_list = response.xpath(
+            "//table/tr/td/[contains(concat(' ',normalize-space(@class),' '),' cat_border_cell ')]/div/div/a/@href"
+        )
 
-        print(product_card_list[0])
+        for url in product_card_list:
+            yield Request(
+                url, callback=self.parse_product_page, cb_kwargs=dict(category=category)
+            )
+
+    def parse_product_page(self, response, category):
+        pass

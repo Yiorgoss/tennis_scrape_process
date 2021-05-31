@@ -1,6 +1,6 @@
 import datetime
 
-date = datetime.datetime.now().strftime("%d-%m-%Y")
+date = datetime.datetime.now().strftime("%Y-%m-%d")
 # Scrapy settings for scraper project
 #
 # For simplicity, this file contains only settings considered important or
@@ -17,7 +17,8 @@ SPIDER_MODULES = ["scraper.spiders"]
 NEWSPIDER_MODULE = "scraper.spiders"
 
 
-LOG_FILE = "logs/log-{0}.txt".format(date)
+# LOG_FILE = "logs/log-{0}.txt".format(date)
+
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 # USER_AGENT = 'scraper (+http://www.yourdomain.com)'
 
