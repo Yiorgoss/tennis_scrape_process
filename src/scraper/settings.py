@@ -17,6 +17,7 @@ SPIDER_MODULES = ["scraper.spiders"]
 NEWSPIDER_MODULE = "scraper.spiders"
 
 
+DOWNLOAD_FAIL_ON_DATALOSS = True
 # LOG_FILE = "logs/log-{0}.txt".format(date)
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
