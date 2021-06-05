@@ -23,7 +23,30 @@ def price_string_to_float(price_string_list):
     return result
 
 
-def sale_tag_parser(class_names):
+def sale_tag_parser(string):
+    # determine if this is from a class name or from text
+    string = string.strip()
+    if len(string.split(" ")) == 1:
+        # single class name
+        return single_sale_tag_parser(string)
+    else:
+        # multiple tags or no tags
+        return multiple_sale_tag_parser(string)
+
+
+def single_sale_tag_parser(string):
+    new, best, sale = "0", "0", "0"
+    if string == "New":
+        new = "1"
+    elif string == "Best Seller":
+        best = "1"
+    elif string == "Sale":
+        sale == "1"
+
+    return new, best, sale
+
+
+def multiple_sale_tag_parser(class_names):
     # remove name classname check if there are anymore
     # will be zero or more of the following 3
     new, best, sale = "0", "0", "0"
@@ -111,7 +134,15 @@ class Item(scrapy.Item):
         ),
     )
     sale_tags = Field(
-        input_processor=MapCompose(remove_tags, sale_tag_parser),
+        input_processor=MapCompose(
+            remove_tags,
+            sale_tag_parser,
+        ),
     )
 
-    url = Field(input_processor=MapCompose(str.strip))
+    url = Field(
+        input_processor=MapCompose(
+            remove_tags,
+            str.strip,
+        )
+    )

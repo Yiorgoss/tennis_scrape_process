@@ -1,13 +1,30 @@
-# Define your item pipelines here
-#
-# Don't forget to add your pipeline to the ITEM_PIPELINES setting
-# See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
+from scrapy.exceptions import DropItem
+
+import datetime
 
 
-# useful for handling different item types with a single interface
-from itemadapter import ItemAdapter
+class DuplicatesPipeline(object):
+    """simple pipeline to check for any duplicate items,
+    checking is done via name attribute"""
 
+    def __init__(self):
+        self.names = dict()
 
-class ScraperPipeline:
     def process_item(self, item, spider):
-        return item
+
+        item_name = item["name"][0]  # scrapy places item in list
+        if item_name in self.names:
+            self.names[item_name] += 1  # count number duplicates
+            raise DropItem("DuplicateError", "Duplicate dropped: %s" % item["name"])
+        else:
+            self.names[item_name] = 1
+            return item
+
+    def close_spider(self, spider):
+        """record the name and number of any duplicate items"""
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+        with open(f"output/logs/sum_duplicate-{date}).csv", "a+") as f:
+            f.write(f"Duplicate count for -- {date}\n")
+
+            for item in self.names.items():
+                f.write("{item[0],item[1]}")

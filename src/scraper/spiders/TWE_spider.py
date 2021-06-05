@@ -26,32 +26,47 @@ class TWE_Spider(scrapy.Spider):
         Follows the urls on the main page
         """
 
-        url_list = response.css("ul.lnav_section").xpath("./li/a/@href")
+        # left navigation menu with all the urls in the website - hopefully
+        url_list = response.css("ul.lnav_section > li >a::attr(href)")
+        # .xpath("./li/a/@href")
 
         for url in url_list.getall():
+            # start by going through the sub urls
             url = self.absolute_url_helper(url)
-            yield response.follow(url, callback=self.parse_product_list)
+            yield response.follow(
+                url,
+                callback=self.parse_product_list,
+            )
+        url_list = response.css("div.lnav_heading > a::attr(href)")
+        for url in url_list.getall():
+            url = self.absolute_url_helper(url)
+            yield response.follow(
+                url,
+                callback=self.parse_product_list,
+            )
 
     def parse_product_list(self, response):
         product_card_list = response.css("td.cat_border_cell")
+
+        if not product_card_list:
+            # does not contain a grid with products
+            self.logger.info("No product_list in - %s" % response.url)
+            yield
 
         for card in product_card_list:
             # try and parse relevant info from catelog page
             # else try from product page
             l = ItemLoader(item=Item(), selector=card)
 
-            url = card.css(".name::attr(href)").get()
-            name = card.css(".name::text").get()
-
-            l.add_css("url", ".name::attr(href)")
             l.add_css("name", ".name::text")
+            l.add_css("url", ".name::attr(href)")
 
-            prices_list = card.css(
-                ".convert_price::text"
-            ).getall()  # this will be an array of 1-3 values
+            # get the text and just join
+            prices_list = card.css(".convert_price::text").getall()
 
             prices_string = ";".join(prices_list)
             # cant join with comma because greek prices use , instaed of .
+            # if needed must also be changed in the Item methods
             l.add_value("prices", prices_string)
             # l.add_value("prices", ["1", "2", "3"])
 
@@ -60,127 +75,95 @@ class TWE_Spider(scrapy.Spider):
 
             yield l.load_item()
 
-            # url = card.css(".name::attr(href)").get()
-            # item["name"] = card.css(".name::text").get()
-            # item["url"] = url
+    def cycle_layout_parser(self, response):
+        """search for specific classname
+        if it exists then that is the layout to parse
+        there are 3 different possible layouts
 
-            # price, previous_price, price_for_two = self.prices_to_csv(prices_list)
+        if the selector returns nothing then it must be the other layout
+        """
+        self.logger.info(
+            "======================================================================================================================="
+        )
 
-            #    logger.warning(
-            #        "Parsing from catalog page failed, attempting product page parse."
-            #    )
-            #    yield Request(url, callback=self.parse_product_page)
+        self.logger.info("Trying to cycle layout parser...")
+        li_list = response.css("ul.brand_icon_list > li")  # layout 1
+
+        if len(li_list) > 0:
+            # example layout 1 - https://www.tenniswarehouse-europe.com/stringbrands.html
+            self.logger.info(f"Layout 1 matched {url}")
+            for li in li_list:
+                url = li.xpath("./a/@href")
+
+                yield response.follow(
+                    url,
+                    callback=self.alternate_parse_product_list,
+                )
+
+        self.logger.info("Trying to cycle layout parser...")
+        li_list = response.css(".brand_tile")  # layout 2
+        if len(li_list) > 0:
+            # example layout 2 - https://www.tenniswarehouse-europe.com/apparelmen.html
+            self.logger.info(f"Layout 2 matched {url}")
+            for li in li_list:
+                url = xpath("ancestor::a/@href").get()
+                if not url:
+                    url = li.xpath("@href")
+
+                url = absolute_url_helper(url)
+
+                yield response.follow(
+                    url=url,
+                    callback=self.alternate_parse_product_list,
+                )
+
+        self.logger.info("Trying to cycle layout parser...")
+        li_list = response.css(".brands_block-cell")  # layout 3
+        if len(li_list) > 0:
+            # example layout 3 - https://www.tenniswarehouse-europe.com/catpage-PADEL.html
+            self.logger.info(f"Layout 3 matched {url}")
+            for li in li_list:
+                url = li.xpath("@href")
+
+                yield response.follow(
+                    url=url,
+                    callback=self.alternate_parse_product_list,
+                )
+        self.logger.info("No Layout Found")
+        # if there is no match
+        # simply try alternate parser and exit
+        yield self.alternate_parse_product_list(response)
+
+    def alternate_parse_product_list(self, response):
+        """an parser for a alternate layout to the one in parse_product_list"""
+        card_list = response.css(".product_wrapper")
+        for card in card_list:
+            l = ItemLoader(item=Item(), selector=card)
+
+            name = card.css(".name > a::text")
+            url = card.css(".name > a::attr(href)")
+
+            if not name:
+                # if not set means name/url under different element
+                name = card.css(".name::text")
+                url = card.css(".name::attr(href)")
+
+            l.add_css("name", name)
+            l.add_css("url", url)
+
+            prices_list = card.css(".convert_price::text").getall()
+            prices_string = ";".join(prices_list)
+            l.add_value("prices", prices_string)
+
+            l.add_css("sale_tags", "span.producttag::text")
+
+            yield l.load_item()
 
     def absolute_url_helper(self, url):
         # some urls contain domain others do not
         # this method just appends domain to the start
         if len(url.split("/")) < 3:
+            self.logger.info(f"urlhelper called: {url}")
             url = self.start_urls[0] + url
 
-        self.logger.debug("urlhelper called : %s returned", url)
         return url
-
-    # def parse_product_page(self, response, category):
-    #     # parse the individual product page
-    #     # product info
-    #     item = Item()
-
-    #     item["url"] = response.url
-
-    #     select = Selector(text=product)
-
-    #     name = select.css(".name::text").get()
-    #     select.css(".convert_price::text").getall()
-
-    #     price_list = select.css(
-    #         ".convert_price::text"
-    #     ).getall()  # this will be an array of 1-3 values
-
-    #     prices = price_to_csv(price_list)
-
-
-# def sale_class_parser(self, class_name_list):
-#     # remove name from class list and return value = 1 if exist
-#     new, best, sale = 0, 0, 0
-
-#     cname_list = class_name_list.replace("name", "").split(" ")
-
-#     for item in cname_list:
-#         if item == "w_new":
-#             new = 1
-#         if item == "w_best":
-#             best = 1
-#         if item == "w_sale":
-#             sale = 1
-#     return new, best, sale
-
-# def prices_to_csv(self, price_list):
-#    # prices come in any of 3 forms
-#    # price, previous price, and price for two
-#    price, prev_price, two_price = -1, -1, -1  # default to -1
-#    if len(price_list) == 2:
-#        if price_list[0] < price_list[1]:
-#            # is of the form price and previous price
-#            price = price_list[0]
-#            prev_price = price_list[1]
-#        if price_list[0] > price_list[1]:
-#            # is of the form price and price for two
-#            price = price_list[0]
-#            two_price = price_list[1]
-#    if len(price_list) == 3:
-#        # is of the form price, previous price and price for two
-#        price = price_list[0]
-#        prev_price = price_list[1]
-#        two_price = price_list[2]
-
-#    return price, prev_price, two_price
-
-
-# def parse(self, response):
-#     # starting point
-#     categories = response.xpath("//nav/ul/li/a")
-
-#     # nav bar links
-#     for item in categories:
-#         url = item.xpath("@href").get()
-#         category = item.xpath("text()").get()
-
-#         url = self.absolute_url_helper(url)
-
-#         yield Request(
-#             url,
-#             callback=self.parse_product_list,
-#             cb_kwargs=dict(category=category),
-#         )
-
-# with open("output/tenniswarehouse_stock.csv", "a") as f:
-#    f.write(line + "\n")
-
-#        try:
-
-#            prices_list = select.css(
-#                ".convert_price::text"
-#            ).getall()  # this will be an array of 1-3 values
-
-#            new, best, sale = self.sale_class_parser(
-#                select.css(".name").attrib["class"]
-#            )
-
-#            line = category + "," + name + ","
-
-#            line += self.prices_to_csv(prices_list)
-#            line += new + "," + best + "," + sale
-#            line += url
-
-#            with open("output/tenniswarehouse_stock.csv", "a") as f:
-#                f.write(line + "\n")
-#        except:
-#            self.logger.warning(
-#                "failed to parse from product page. Attempting product page."
-#            )
-
-# yield Request(
-#    url,
-#    callback=self.parse_product_page,
-#    cb_kwargs=dict(category=category),
-# )
