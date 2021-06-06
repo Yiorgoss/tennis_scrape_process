@@ -10,7 +10,8 @@ class TWE_Spider(scrapy.Spider):
     name = "tenniswarehouse"
 
     start_urls = ["https://www.tenniswarehouse-europe.com"]
-    allowed_domains = ["tenniswarehouse-europe.com"]
+
+    unmatched = 0
 
     def start_requests(self):
         # set the cookie
@@ -27,143 +28,154 @@ class TWE_Spider(scrapy.Spider):
         """
 
         # left navigation menu with all the urls in the website - hopefully
-        url_list = response.css("ul.lnav_section > li >a::attr(href)")
+        url_list = response.css("ul.lnav_section > li >a::attr(href)").getall()
+        url_list.extend(response.css("div.lnav_heading > a::attr(href)").getall())
         # .xpath("./li/a/@href")
 
-        for url in url_list.getall():
+        for url in url_list:
             # start by going through the sub urls
             url = self.absolute_url_helper(url)
+
             yield response.follow(
                 url,
-                callback=self.parse_product_list,
-            )
-        url_list = response.css("div.lnav_heading > a::attr(href)")
-        for url in url_list.getall():
-            url = self.absolute_url_helper(url)
-            yield response.follow(
-                url,
-                callback=self.parse_product_list,
+                callback=self.page_layout_parser,
             )
 
-    def parse_product_list(self, response):
-        product_card_list = response.css("td.cat_border_cell")
+    def page_layout_parser(self, response):
 
-        if not product_card_list:
-            # does not contain a grid with products
-            self.logger.info("No product_list in - %s" % response.url)
-            yield
+        # layout 1
+        layout_selectors = response.css("td.cat_border_cell")
 
-        for card in product_card_list:
-            # try and parse relevant info from catelog page
-            # else try from product page
-            l = ItemLoader(item=Item(), selector=card)
+        if layout_selectors:
+            # example layout 1 - https://www.tenniswarehouse-europe.com/catpage-BABOLATRAC-EN.html
+            self.logger.info("Layout 1 matched")
+            for selector in layout_selectors:
+                # only enters if product_card_list returns something
+                yield self.parse_layout_1(selector)
 
-            l.add_css("name", ".name::text")
-            l.add_css("url", ".name::attr(href)")
-
-            # get the text and just join
-            prices_list = card.css(".convert_price::text").getall()
-
-            prices_string = ";".join(prices_list)
-            # cant join with comma because greek prices use , instaed of .
-            # if needed must also be changed in the Item methods
-            l.add_value("prices", prices_string)
-            # l.add_value("prices", ["1", "2", "3"])
-
-            sale_classes = card.css(".name").attrib["class"]
-            l.add_value("sale_tags", sale_classes)
-
-            yield l.load_item()
-
-    def cycle_layout_parser(self, response):
-        """search for specific classname
-        if it exists then that is the layout to parse
-        there are 3 different possible layouts
-
-        if the selector returns nothing then it must be the other layout
-        """
-        self.logger.info(
-            "======================================================================================================================="
-        )
-
-        self.logger.info("Trying to cycle layout parser...")
-        li_list = response.css("ul.brand_icon_list > li")  # layout 1
-
-        if len(li_list) > 0:
-            # example layout 1 - https://www.tenniswarehouse-europe.com/stringbrands.html
-            self.logger.info(f"Layout 1 matched {url}")
-            for li in li_list:
-                url = li.xpath("./a/@href")
+        # layout 2
+        layout_selectors = response.css(".brands_block-cell")  # page layout 2
+        if layout_selectors:
+            # example layout 2 - https://www.tenniswarehouse-europe.com/catpage-PADEL.html
+            self.logger.info(f"Layout 2 matched")
+            for li in layout_selectors:
+                url = li.xpath("./a/@href").get()
+                self.logger.info(url)
 
                 yield response.follow(
                     url,
-                    callback=self.alternate_parse_product_list,
+                    callback=self.parse_layout_4,
                 )
 
-        self.logger.info("Trying to cycle layout parser...")
-        li_list = response.css(".brand_tile")  # layout 2
-        if len(li_list) > 0:
-            # example layout 2 - https://www.tenniswarehouse-europe.com/apparelmen.html
-            self.logger.info(f"Layout 2 matched {url}")
-            for li in li_list:
-                url = xpath("ancestor::a/@href").get()
+        # layout 4
+        layout_selectors = response.css(".brand_tile")
+        if layout_selectors:
+            # example layout 4 - https://www.tenniswarehouse-europe.com/apparelmen.html
+            self.logger.info(f"Layout 2 matched")
+            for selector in layout_selectors:
+                url = selector.xpath("ancestor::a/@href").get()
                 if not url:
-                    url = li.xpath("@href")
+                    url = selector.xpath("@href").get()
 
-                url = absolute_url_helper(url)
-
-                yield response.follow(
-                    url=url,
-                    callback=self.alternate_parse_product_list,
-                )
-
-        self.logger.info("Trying to cycle layout parser...")
-        li_list = response.css(".brands_block-cell")  # layout 3
-        if len(li_list) > 0:
-            # example layout 3 - https://www.tenniswarehouse-europe.com/catpage-PADEL.html
-            self.logger.info(f"Layout 3 matched {url}")
-            for li in li_list:
-                url = li.xpath("@href")
+                url = self.absolute_url_helper(url)
 
                 yield response.follow(
                     url=url,
-                    callback=self.alternate_parse_product_list,
+                    callback=self.parse_layout_4,
                 )
-        self.logger.info("No Layout Found")
-        # if there is no match
-        # simply try alternate parser and exit
-        yield self.alternate_parse_product_list(response)
 
-    def alternate_parse_product_list(self, response):
-        """an parser for a alternate layout to the one in parse_product_list"""
-        card_list = response.css(".product_wrapper")
-        for card in card_list:
-            l = ItemLoader(item=Item(), selector=card)
+        # layout 3
+        layout_selectors = response.css("td.name + td, td.name").getall()
+        # list of all names and prices then group two at a time
 
-            name = card.css(".name > a::text")
-            url = card.css(".name > a::attr(href)")
+        if layout_selectors:
+            # example layout 3 - https://www.tenniswarehouse-europe.com/catpage-GACGROM-EN.html
+            self.logger.info("Layout 3 matched")
+            url = response.url
+            for row in self.group_by(layout_selectors, 2):
+                # nice layouts
+                yield self.parse_layout_3(
+                    row[0], row[1], url
+                )  # row[0] = name, row[1] = price
 
-            if not name:
-                # if not set means name/url under different element
-                name = card.css(".name::text")
-                url = card.css(".name::attr(href)")
+        self.unmatched += 1
+        self.logger.info(f"Number of unmatched urls == {self.unmatched}")
+        yield None
 
-            l.add_css("name", name)
-            l.add_css("url", url)
+    def parse_layout_1(self, selector):
+        l = ItemLoader(item=Item(), selector=selector)
 
-            prices_list = card.css(".convert_price::text").getall()
-            prices_string = ";".join(prices_list)
-            l.add_value("prices", prices_string)
+        l.add_css("name", ".name::text")
+        l.add_css("url", ".name::attr(href)")
 
-            l.add_css("sale_tags", "span.producttag::text")
+        # get the text and just join
+        prices_list = selector.css(".convert_price::text").getall()
 
-            yield l.load_item()
+        prices_string = ";".join(prices_list)
+        # cant join with comma because greek prices use , instaed of .
+        # if needed must also be changed in the Item methods
+        l.add_value("prices", prices_string)
+        # l.add_value("prices", ["1", "2", "3"])
+
+        sale_classes = selector.css(".name").attrib["class"]
+        l.add_value("sale_tags", sale_classes)
+
+        return l.load_item()
+
+    def parse_layout_2(self, selector):
+
+        l = ItemLoader(item=Item(), selector=selector)
+
+        name = selector.css(".name > a::text").get()
+        url = selector.css(".name > a::attr(href)").get()
+
+        if not name:
+            # if not set means name/url under different element
+            name = selector.css(".name::text").get()
+        if not url:
+            url = selector.css(".name::attr(href)").get()
+
+        l.add_value("name", name)
+        l.add_value("url", url)
+
+        prices_list = selector.css(".convert_price::text").getall()
+        prices_string = ";".join(prices_list)
+        l.add_value("prices", prices_string)
+
+        l.add_css("sale_tags", "span.producttag::text")
+
+        if not name or not prices_list:
+            DropItem("MissingValuesError", "Missing values")
+
+        return l.load_item()
+
+    def parse_layout_3(self, name, price, url):
+        l = ItemLoader(item=Item())
+
+        l.add_value("name", name)
+        l.add_value("url", url)
+
+        l.add_value("prices", price)
+        l.add_value("sale_tags", "")
+
+        return l.load_item()
+
+    def parse_layout_4(self, response):
+        product_list = response.css(".product_wrapper")
+
+        for product in product_list:
+            yield self.parse_layout_2(product)
+
+    def group_by(self, arr, n):
+        """Yield successive n-sized chunks from lst."""
+        for i in range(0, len(arr), n):
+            yield arr[i : i + n]
 
     def absolute_url_helper(self, url):
         # some urls contain domain others do not
         # this method just appends domain to the start
         if len(url.split("/")) < 3:
-            self.logger.info(f"urlhelper called: {url}")
+            # self.logger.info(f"urlhelper called: {url}")
             url = self.start_urls[0] + url
 
         return url

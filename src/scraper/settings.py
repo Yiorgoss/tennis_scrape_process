@@ -2,7 +2,7 @@ import datetime
 
 date = datetime.datetime.now().strftime("%Y-%m-%d")
 
-BOT_NAME = "tennis-scraper"
+BOT_NAME = "scraper"
 
 
 SPIDER_MODULES = ["scraper.spiders"]
@@ -13,7 +13,7 @@ NEWSPIDER_MODULE = "scraper.spiders"
 ROBOTSTXT_OBEY = True
 
 LOG_ENABLED = True
-LOG_FILE = f"scrape-{date}.csv"
+LOG_FILE = f"output/logs/scrape-{date}.csv"
 # Disable cookies (enabled by default)
 # COOKIES_ENABLED = False
 # COOKIES_DEBUG = True

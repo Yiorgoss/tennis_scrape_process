@@ -20,11 +20,12 @@ class DuplicatesPipeline(object):
             self.names[item_name] = 1
             return item
 
-    def close_spider(self, spider):
-        """record the name and number of any duplicate items"""
-        date = datetime.datetime.now().strftime("%Y-%m-%d")
-        with open(f"output/logs/sum_duplicate-{date}).csv", "a+") as f:
-            f.write(f"Duplicate count for -- {date}\n")
 
-            for item in self.names.items():
-                f.write("{item[0],item[1]}")
+#    def close_spider(self, spider):
+#        """record the name and number of any duplicate items"""
+#        date = datetime.datetime.now().strftime("%Y-%m-%d")
+#        with open(f"output/logs/sum_duplicate-{date}).csv", "a+") as f:
+#            f.write(f"Duplicate count for -- {date}\n")
+#
+#            for item in self.names.items():
+#                f.write("{item[0],item[1]}")
