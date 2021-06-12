@@ -51,7 +51,7 @@ class TWE_Spider(scrapy.Spider):
             self.logger.info("Layout 1 matched")
             for selector in layout_selectors:
                 # only enters if product_card_list returns something
-                yield self.parse_layout_1(selector)
+                yield self.parse_layout_2(selector)
 
         # layout 2
         layout_selectors = response.css(".brands_block-cell")  # page layout 2
@@ -103,6 +103,7 @@ class TWE_Spider(scrapy.Spider):
         yield None
 
     def parse_layout_1(self, selector):
+        # legacy code no longer in use
         l = ItemLoader(item=Item(), selector=selector)
 
         l.add_css("name", ".name::text")
@@ -117,8 +118,7 @@ class TWE_Spider(scrapy.Spider):
         l.add_value("prices", prices_string)
         # l.add_value("prices", ["1", "2", "3"])
 
-        sale_classes = selector.css(".name").attrib["class"]
-        l.add_value("sale_tags", sale_classes)
+        l.add_css("sale_tag", "span.producttag::text")
 
         return l.load_item()
 
@@ -142,7 +142,7 @@ class TWE_Spider(scrapy.Spider):
         prices_string = ";".join(prices_list)
         l.add_value("prices", prices_string)
 
-        l.add_css("sale_tags", "span.producttag::text")
+        l.add_css("sale_tag", "span.producttag::text")
 
         if not name or not prices_list:
             DropItem("MissingValuesError", "Missing values")
@@ -156,7 +156,7 @@ class TWE_Spider(scrapy.Spider):
         l.add_value("url", url)
 
         l.add_value("prices", price)
-        l.add_value("sale_tags", "")
+        l.add_value("sale_tag", "")
 
         return l.load_item()
 

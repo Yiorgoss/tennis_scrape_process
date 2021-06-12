@@ -119,10 +119,16 @@ def price_parser(price_list_string):
     return price_arr
 
 
+def racquet_replace(string):
+    return string.replace("racket", "racquet")
+
+
 class Item(scrapy.Item):
     name = Field(
         input_processor=MapCompose(
             remove_tags,
+            str.lower,
+            racquet_replace,
             str.strip,
         ),
     )
@@ -133,10 +139,10 @@ class Item(scrapy.Item):
             price_parser,
         ),
     )
-    sale_tags = Field(
+    sale_tag = Field(
         input_processor=MapCompose(
             remove_tags,
-            sale_tag_parser,
+            str.strip,
         ),
     )
 
