@@ -23,49 +23,6 @@ def price_string_to_float(price_string_list):
     return result
 
 
-def sale_tag_parser(string):
-    # determine if this is from a class name or from text
-    string = string.strip()
-    if len(string.split(" ")) == 1:
-        # single class name
-        return single_sale_tag_parser(string)
-    else:
-        # multiple tags or no tags
-        return multiple_sale_tag_parser(string)
-
-
-def single_sale_tag_parser(string):
-    new, best, sale = "0", "0", "0"
-    if string == "New":
-        new = "1"
-    elif string == "Best Seller":
-        best = "1"
-    elif string == "Sale":
-        sale == "1"
-
-    return new, best, sale
-
-
-def multiple_sale_tag_parser(class_names):
-    # remove name classname check if there are anymore
-    # will be zero or more of the following 3
-    new, best, sale = "0", "0", "0"
-    cname_list = class_names.replace("name", "").strip().split(" ")
-
-    if not isinstance(cname_list, list):
-        cname_list = [cname_list]
-
-    for cname in cname_list:
-        if cname == "w_new":
-            new = 1
-        if cname == "w_best":
-            best = 1
-        if cname == "w_sale":
-            sale = 1
-
-    return new, best, sale
-
-
 def remove_currency(value):
     # anything that isnt a number or a decimal or item split char gtfo
     trim = re.compile(r"[^\d\.;]+")
@@ -113,9 +70,7 @@ def price_parser(price_list_string):
         two_price = price_list[2]
 
     price_arr = [price, prev_price, two_price]
-    if len(price_arr) == 2:
-        raise Exception(price_arr)
-    # return ",".join(str(x) for x in price_arr)
+
     return price_arr
 
 
